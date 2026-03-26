@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My QR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { text-align: center; font-family: Arial; }
+        img { width: 250px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h2>Show this QR to Faculty</h2>
+    <img src="{{ url_for('static', filename='qr/' + qr_file) }}">
+</body>
+</html>

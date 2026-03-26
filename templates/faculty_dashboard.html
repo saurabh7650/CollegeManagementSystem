@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Faculty Dashboard</title>
+
+    <!-- Bootstrap -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="bg-light">
+    <div class="position-fixed top-0 start-50 translate-middle-x mt-5" style="z-index: 9999">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="toast align-items-center text-bg-{{ category }} border-0 mb-2"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        data-bs-delay="5000"
+      >
+        <div class="d-flex">
+          <div class="toast-body">{{ message }}</div>
+          <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            data-bs-dismiss="toast"
+          ></button>
+        </div>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-dark bg-dark px-3">
+      <span class="navbar-brand">👨‍🏫 Faculty Dashboard</span>
+      <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+    </nav>
+
+    <div class="container mt-4">
+      <!-- PROFILE CARD -->
+      <div class="card shadow mb-4">
+        <div class="card-body text-center">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+            class="rounded-circle mb-3"
+            width="120"
+          />
+
+          <h4>{{ faculty.name }}</h4>
+          <p class="text-muted mb-1">Subject: {{ faculty.subject }}</p>
+          <p class="text-muted">Email: {{ faculty.email }}</p>
+        </div>
+      </div>
+
+      <!-- ACTION CARD -->
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card shadow text-center">
+            <div class="card-body">
+              <h5 class="card-title">Take Attendance</h5>
+              <p class="text-muted">Scan student QR code to mark attendance</p>
+
+              <a href="/mark_attendance" class="btn btn-success btn-lg w-100">
+                📷 Scan Attendance
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var toastElList = [].slice.call(document.querySelectorAll(".toast"));
+        toastElList.map(function (toastEl) {
+          var toast = new bootstrap.Toast(toastEl);
+          toast.show();
+        });
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

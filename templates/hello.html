@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SPA Example</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    nav { background: #333; color: #fff; padding: 10px; display: flex; gap: 15px; }
+    nav a { color: white; text-decoration: none; cursor: pointer; }
+    #content { padding: 20px; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a onclick="loadPage('home.html')">Home</a>
+    <a onclick="loadPage('about.html')">About</a>
+    <a onclick="loadPage('contact.html')">Contact</a>
+    <a onclick="loadPage('login.html')">Login</a>
+    <a onclick="loadPage('signup.html')">Sign Up</a>
+  </nav>
+
+  <div id="content">
+    <h1>Welcome</h1>
+    <p>This is the home section.</p>
+  </div>
+
+  <script>
+    function loadPage(page) {
+      fetch(page)
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById('content').innerHTML = data;
+        });
+    }
+  </script>
+
+</body>
+</html>
