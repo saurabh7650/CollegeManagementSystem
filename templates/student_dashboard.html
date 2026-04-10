@@ -1,109 +1,227 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
     <title>Student Dashboard</title>
-
-    <!-- Bootstrap -->
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
-
-    <script>
-      function toggleAttendance() {
-        const div = document.getElementById("attendanceSection");
-        div.classList.toggle("d-none");
-      }
-
-      function toggleQR() {
-        const div = document.getElementById("qrSection");
-        div.classList.toggle("d-none");
-      }
-    </script>
   </head>
 
   <body class="bg-light">
-    <nav class="navbar navbar-dark bg-dark px-3">
-      <span class="navbar-brand">🎓 Student Dashboard</span>
-      <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+    <!-- 🔝 Navbar -->
+    <nav class="navbar navbar-dark bg-dark">
+      <div class="container-fluid">
+        <span class="navbar-brand">🎓 Student Panel</span>
+
+        <div>
+          <button
+            class="btn btn-light me-2"
+            data-bs-toggle="modal"
+            data-bs-target="#noticeModal"
+          >
+            🔔 {% if notice_count > 0 %}
+            <span class="badge bg-danger">{{ notice_count }}</span>
+            {% endif %}
+          </button>
+
+          <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+        </div>
+      </div>
     </nav>
 
     <div class="container mt-4">
-      <!-- PROFILE CARD -->
-      <div class="card mb-4 shadow">
-        <div class="card-body text-center">
-          <img
-            src="/{{ student.photo }}"
-            class="rounded-circle mb-3"
-            width="120"
-            height="120"
-          />
-          <h4>{{ student.name }}</h4>
-          <p class="text-muted mb-1">Roll No: {{ student.roll_no }}</p>
-          <p class="text-muted">Email: {{ student.email }}</p>
-        </div>
+      <h3>Welcome, {{ student.name }}</h3>
+
+      <!-- 👤 PROFILE CARD (UPDATED HORIZONTAL PHOTO + QR) -->
+<div class="card shadow mb-4">
+
+  <!-- Header -->
+  <div class="card-header text-center text-white" style="background:#0d6efd;">
+    <h4 class="mb-0">Student Profile</h4>
+  </div>
+
+  <div class="card-body">
+
+    <div class="row">
+
+      <!-- LEFT SIDE TABLE -->
+      <div class="col-md-8">
+        <table class="table table-bordered">
+          <tr>
+            <th style="width:30%">Name</th>
+            <td>{{ student.name }}</td>
+          </tr>
+
+          <tr>
+            <th>Roll No</th>
+            <td>{{ student.roll_no }}</td>
+          </tr>
+
+          <tr>
+            <th>Address</th>
+            <td>{{ student.address }}</td>
+          </tr>
+
+          <tr>
+            <th>Department</th>
+            <td>{{ student.department_name }}</td>
+          </tr>
+
+          <tr>
+            <th>Course</th>
+            <td>{{ student.course_name }}</td>
+          </tr>
+        </table>
       </div>
 
-      <!-- ACTION BUTTONS -->
-      <div class="row text-center mb-3">
-        <div class="col-md-6 mb-2">
-          <button onclick="toggleAttendance()" class="btn btn-primary w-100">
-            📊 My Attendance
-          </button>
+      <!-- RIGHT SIDE (PHOTO + QR SAME LINE) -->
+      <div class="col-md-4 text-center">
+
+        <div class="d-flex justify-content-center gap-5">
+
+          <!-- Photo -->
+          <div>
+            {% if student.photo %}
+            <img src="/{{ student.photo }}" class="img-thumbnail" style="width:150px; height:150px;">
+            {% else %}
+            <div class="border p-3">No Photo</div>
+            {% endif %}
+            <p class="small mt-1">Photo</p>
+          </div>
+
+          <!-- QR -->
+          <div>
+            {% if student.qr_code %}
+            <img src="/{{ student.qr_code }}" class="img-thumbnail" style="width:150px; height:150px;">
+            {% else %}
+            <div class="border p-3">No QR</div>
+            {% endif %}
+            <p class="small mt-1">Scan QR</p>
+          </div>
+
         </div>
 
-        <div class="col-md-6 mb-2">
-          <button onclick="toggleQR()" class="btn btn-success w-100">
-            🔳 Show My QR Code
-          </button>
-        </div>
       </div>
 
-      <!-- ATTENDANCE SECTION -->
-      <div id="attendanceSection" class="card shadow d-none mb-4">
-        <div class="card-header bg-primary text-white">Attendance History</div>
-        <div class="card-body p-0">
-          <table class="table table-bordered table-striped mb-0">
-            <thead class="table-dark">
+    </div>
+
+  </div>
+</div>
+
+      <!-- 📊 ATTENDANCE BUTTON -->
+      <button class="btn btn-success mb-2" onclick="toggleAttendance()">
+        Show Attendance
+      </button>
+
+      <div id="attendanceSection" style="display: none">
+        <div class="card shadow mb-4">
+          <div class="card-header bg-success text-white">
+            Attendance History
+          </div>
+
+          <div class="card-body">
+            <table class="table table-bordered">
               <tr>
                 <th>Subject</th>
+                <th>Faculty</th>
                 <th>Date</th>
-                <th>Time</th>
-                <th>Method</th>
+                <th>Status</th>
               </tr>
-            </thead>
-            <tbody>
+
               {% for a in attendance %}
               <tr>
-                <td>{{ a.subject }}</td>
+                <td>{{ a.subject_name }}</td>
+                <td>{{ a.faculty_name }}</td>
                 <td>{{ a.date }}</td>
-                <td>{{ a.time }}</td>
-                <td>{{ a.method }}</td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="3" class="text-center text-muted">
-                  No attendance records found
+                <td>
+                  {% if a.status == 'Present' %}
+                  <span class="badge bg-success">Present</span>
+                  {% else %}
+                  <span class="badge bg-danger">Absent</span>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}
-            </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
 
-      <!-- QR SECTION -->
-      <div id="qrSection" class="card shadow d-none">
-        <div class="card-header bg-success text-white">My QR Code</div>
-        <div class="card-body text-center">
-          <img
-            src="{{ url_for('static', filename='qr_codes/' + qr_file) }}"
-            class="img-thumbnail"
-            width="220"
-          />
-          <p class="mt-2 text-muted">Show this QR to faculty for attendance</p>
+      <!-- 💰 FEE BUTTON -->
+      <button class="btn btn-warning mb-2" onclick="toggleFee()">
+        Show Fee Details
+      </button>
+
+      <div id="feeSection" style="display: none">
+        <div class="card shadow">
+          <div class="card-header bg-warning">Fee Details</div>
+
+          <div class="card-body">
+            <p><strong>Total Fee:</strong> ₹{{ total_fee }}</p>
+            <p><strong>Paid:</strong> ₹{{ paid }}</p>
+            <p><strong>Pending:</strong> ₹{{ pending }}</p>
+
+            <hr />
+
+            <h5>Payment History</h5>
+
+            <table class="table table-bordered">
+              <tr>
+                <th>Amount</th>
+                <th>Date</th>
+              </tr>
+
+              {% for p in payments %}
+              <tr>
+                <td>₹{{ p.amount_paid }}</td>
+                <td>{{ p.payment_date }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 🔔 NOTICE MODAL -->
+    <div class="modal fade" id="noticeModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5>📢 Notices</h5>
+            <button
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+
+          <div class="modal-body">
+            {% for n in notices %}
+            <div class="border p-2 mb-2">
+              <strong>{{ n.title }}</strong>
+              <p>{{ n.message }}</p>
+              <small>{{ n.created_on }}</small>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      function toggleAttendance() {
+        let x = document.getElementById("attendanceSection");
+        x.style.display = x.style.display === "none" ? "block" : "none";
+      }
+
+      function toggleFee() {
+        let x = document.getElementById("feeSection");
+        x.style.display = x.style.display === "none" ? "block" : "none";
+      }
+    </script>
   </body>
 </html>

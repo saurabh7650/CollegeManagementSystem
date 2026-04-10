@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assign Subject</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container mt-4">
+    <h3>Assign Subject to Faculty</h3>
+
+    <form method="post">
+
+        <div class="mb-3">
+            <label class="form-label">Select Faculty</label>
+            <select name="faculty_id" class="form-control" required>
+                {% for f in faculty %}
+                <option value="{{ f.faculty_id }}">{{ f.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Select Subject</label>
+            <select name="subject_id" class="form-control" required>
+                {% for s in subjects %}
+                <option value="{{ s.subject_id }}">{{ s.subject_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button class="btn btn-primary">Assign</button>
+        <a href="/admin_dashboard" class="btn btn-secondary">Back</a>
+
+    </form>
+</div>
+
+</body>
+</html>

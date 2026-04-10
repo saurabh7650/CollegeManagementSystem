@@ -12,7 +12,16 @@
     <form method="post">
         <input class="form-control mb-2" name="name" value="{{ faculty.name }}" required>
         <input class="form-control mb-2" name="email" value="{{ faculty.email }}" required>
-        <input class="form-control mb-2" name="subject" value="{{ faculty.subject }}" required>
+        
+        <label>Department</label>
+        <select class="form-control mb-2" name="department_id">
+            {% for d in departments %}
+            <option value="{{ d.department_id }}"
+            {% if d.department_id == faculty.department_id %}selected{% endif %}>
+            {{ d.department_name }}
+            </option>
+            {% endfor %}
+        </select>
 
         <button class="btn btn-success">Update</button>
         <a href="/admin/view_faculty" class="btn btn-secondary">Back</a>

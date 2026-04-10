@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <title>View Courses</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container mt-4">
+      <h3>All Courses</h3>
+
+      <table class="table table-bordered table-striped">
+        <tr>
+          <th>ID</th>
+          <th>Course Name</th>
+          <th>Duration (Years)</th>
+          <th>Total Fee</th>
+          <th>Department</th>
+          <th>Action</th>
+        </tr>
+
+        {% for c in courses %}
+        <tr>
+          <td>{{ c.course_id }}</td>
+          <td>{{ c.course_name }}</td>
+          <td>{{ c.duration_years }}</td>
+          <td>{{ c.total_fee }}</td>
+          <td>{{ c.department_name }}</td>
+          <td>
+            <a
+              class="btn btn-warning btn-sm"
+              href="/admin/edit_course/{{ c.course_id }}"
+              >Edit</a
+            >
+
+            <a
+              class="btn btn-danger btn-sm"
+              href="/admin/delete_course/{{ c.course_id }}"
+              onclick="return confirm('Delete this course?');"
+              >Delete</a
+            >
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <a href="/admin_dashboard" class="btn btn-secondary">Back</a>
+    </div>
+  </body>
+</html>

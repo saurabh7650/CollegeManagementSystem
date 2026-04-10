@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Subjects</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container mt-4">
+
+    <h3>All Subjects</h3>
+
+    <table class="table table-bordered table-striped">
+        <tr>
+            <th>ID</th>
+            <th>Subject Name</th>
+            <th>Semester</th>
+            <th>Course</th>
+            <th>Action</th>
+        </tr>
+
+        {% for s in subjects %}
+        <tr>
+            <td>{{ s.subject_id }}</td>
+            <td>{{ s.subject_name }}</td>
+            <td>{{ s.semester }}</td>
+            <td>{{ s.course_name }}</td>
+            <td>
+                <a class="btn btn-warning btn-sm"
+                   href="/admin/edit_subject/{{ s.subject_id }}">Edit</a>
+
+                <a class="btn btn-danger btn-sm"
+                   href="/admin/delete_subject/{{ s.subject_id }}"
+                   onclick="return confirm('Delete subject?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <a href="/admin_dashboard" class="btn btn-secondary">Back</a>
+
+</div>
+
+</body>
+</html>

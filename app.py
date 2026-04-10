@@ -1,20 +1,15 @@
-from flask import Flask, render_template, request, session, redirect
+from flask import Flask, render_template, request, session, redirect, flash
 from database import get_connection
 from camera import capture_photo
-import os
 from qr_generator import generate_qr
+import os
+import cv2
 from datetime import datetime
-from flask import flash, redirect, render_template, session
-
-
-
-
-app = Flask(__name__)
 
 app = Flask(__name__)
 app.secret_key = "college_management_system_secret_key"
 
-
+# ---------------- HOME PAGES ----------------
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -35,9 +30,8 @@ def bsc_it():
 def contact():
     return render_template("contact.html")
 
-# Admin panel Routes Testing
-
-@app.route("/admin_login", methods=["GET","POST"])
+# ---------------- ADMIN LOGIN ----------------
+@app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
     error = None
     if request.method == "POST":
@@ -46,11 +40,10 @@ def admin_login():
 
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT admin_id FROM admin
-            WHERE email=%s AND password=%s
-        """, (email,password))
-
+        cursor.execute(
+            "SELECT admin_id FROM admin WHERE email=%s AND password=%s",
+            (email, password),
+        )
         admin = cursor.fetchone()
         conn.close()
 
@@ -62,49 +55,64 @@ def admin_login():
 
     return render_template("admin_login.html", error=error)
 
+# ---------------- ADMIN DASHBOARD ----------------
 @app.route("/admin_dashboard")
 def admin_dashboard():
     if "admin_id" not in session:
         return redirect("/admin_login")
-
     return render_template("admin_dashboard.html")
 
+# ---------------- ADD STUDENT ----------------
 @app.route("/admin/add_student", methods=["GET", "POST"])
 def admin_add_student():
     if "admin_id" not in session:
         return redirect("/admin_login")
 
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM courses")
+    courses = cursor.fetchall()
+
     if request.method == "POST":
         name = request.form.get("name")
         roll = request.form.get("roll")
-        email = request.form.get("email")
+        address = request.form.get("address")
         password = request.form.get("password")
+        course_id = request.form.get("course_id")
+        dept_id = request.form.get("department_id")
 
-        # 📸 Capture photo
+        os.makedirs("static/images", exist_ok=True)
+        os.makedirs("static/qr_codes", exist_ok=True)
+
         image_path = f"static/images/{roll}.jpg"
         capture_photo(image_path)
 
-        # 🔳 Generate QR
         qr_path = f"static/qr_codes/{roll}.png"
         generate_qr(roll, qr_path)
 
-        # 💾 Insert into DB
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO students 
-            (name, roll_no, email, password, photo, qr_code)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (name, roll, email, password, image_path, qr_path))
-
+        cursor.execute(
+            """
+            INSERT INTO students
+            (name, address, roll_no, password, photo, qr_code, course_id, department_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (name, address, roll, password, image_path, qr_path, course_id, dept_id),
+        )
         conn.commit()
         conn.close()
-
+        flash("Student added successfully", "success")
         return redirect("/admin/view_students")
 
-    return render_template("add_student.html")
+    conn.close()
+    return render_template(
+        "add_student.html", departments=departments, courses=courses
+    )
 
-
+# ---------------- VIEW STUDENTS ----------------
 @app.route("/admin/view_students")
 def view_students():
     if "admin_id" not in session:
@@ -117,20 +125,27 @@ def view_students():
 
     if search:
         cursor.execute("""
-            SELECT * FROM students
-            WHERE roll_no LIKE %s OR name LIKE %s
+        SELECT students.*, courses.course_name, departments.department_name
+        FROM students
+        JOIN courses ON students.course_id = courses.course_id
+        JOIN departments ON students.department_id = departments.department_id
+        WHERE students.roll_no LIKE %s OR students.name LIKE %s
         """, (f"%{search}%", f"%{search}%"))
     else:
-        cursor.execute("SELECT * FROM students")
+        cursor.execute("""
+        SELECT students.*, courses.course_name, departments.department_name
+        FROM students
+        JOIN courses ON students.course_id = courses.course_id
+        JOIN departments ON students.department_id = departments.department_id
+        """)
 
     students = cursor.fetchall()
     conn.close()
 
-    return render_template("view_students.html", students=students, search=search)
+    return render_template("view_students.html", students=students)
 
-
-
-@app.route("/admin/edit_student/<int:id>", methods=["GET","POST"])
+# ---------------- EDIT STUDENT ----------------
+@app.route("/admin/edit_student/<int:id>", methods=["GET", "POST"])
 def edit_student(id):
     if "admin_id" not in session:
         return redirect("/admin_login")
@@ -138,21 +153,43 @@ def edit_student(id):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    if request.method == "POST":
-        cursor.execute("""
-            UPDATE students SET name=%s,email=%s
-            WHERE student_id=%s
-        """, (request.form["name"], request.form["email"], id))
-        conn.commit()
-        conn.close()
-        return redirect("/admin/view_students")
-
     cursor.execute("SELECT * FROM students WHERE student_id=%s", (id,))
     student = cursor.fetchone()
+
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM courses")
+    courses = cursor.fetchall()
+
+    if request.method == "POST":
+        name = request.form["name"]
+        roll = request.form["roll"]
+        address = request.form["address"]
+        dept = request.form["department_id"]
+        course = request.form["course_id"]
+
+        cursor.execute("""
+        UPDATE students
+        SET name=%s, roll_no=%s, address=%s,
+            department_id=%s, course_id=%s
+        WHERE student_id=%s
+        """, (name, roll, address, dept, course, id))
+
+        conn.commit()
+        conn.close()
+        flash("Student updated", "success")
+        return redirect("/admin/view_students")
+
     conn.close()
+    return render_template(
+        "edit_student.html",
+        student=student,
+        departments=departments,
+        courses=courses
+    )
 
-    return render_template("edit_student.html", student=student)
-
+# ---------------- DELETE STUDENT ----------------
 @app.route("/admin/delete_student/<int:id>")
 def delete_student(id):
     if "admin_id" not in session:
@@ -160,64 +197,67 @@ def delete_student(id):
 
     conn = get_connection()
     cursor = conn.cursor()
+
     cursor.execute("DELETE FROM students WHERE student_id=%s", (id,))
     conn.commit()
     conn.close()
 
+    flash("Student deleted", "danger")
     return redirect("/admin/view_students")
 
+# ---------------- ADD FACULTY ----------------
 @app.route("/admin/add_faculty", methods=["GET", "POST"])
 def admin_add_faculty():
     if "admin_id" not in session:
         return redirect("/admin_login")
 
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
     if request.method == "POST":
         name = request.form["name"]
         email = request.form["email"]
         password = request.form["password"]
-        subject = request.form["subject"]
+        dept_id = request.form["department_id"]
 
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO faculty (name, email, password, subject)
-            VALUES (%s, %s, %s, %s)
-        """, (name, email, password, subject))
-
+        cursor.execute(
+            "INSERT INTO faculty (name, email, password, department_id) VALUES (%s, %s, %s, %s)",
+            (name, email, password, dept_id),
+        )
         conn.commit()
         conn.close()
-
+        flash("Faculty added successfully", "success")
         return redirect("/admin/view_faculty")
 
-    return render_template("add_faculty.html")
+    conn.close()
+    return render_template("add_faculty.html", departments=departments)
 
+# ---------------- VIEW FACULTY ----------------
 @app.route("/admin/view_faculty")
 def view_faculty():
     if "admin_id" not in session:
         return redirect("/admin_login")
 
-    search = request.args.get("search")
-
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    if search:
-        cursor.execute("""
-            SELECT * FROM faculty
-            WHERE name LIKE %s OR subject LIKE %s
-        """, (f"%{search}%", f"%{search}%"))
-    else:
-        cursor.execute("SELECT * FROM faculty")
+    cursor.execute("""
+    SELECT faculty.*, departments.department_name
+    FROM faculty
+    JOIN departments
+    ON faculty.department_id = departments.department_id
+    """)
 
     faculty = cursor.fetchall()
     conn.close()
 
-    return render_template("view_faculty.html", faculty=faculty, search=search)
+    return render_template("view_faculty.html", faculty=faculty)
 
-
-
-@app.route("/admin/edit_faculty/<int:id>", methods=["GET","POST"])
+# ---------------- EDIT FACULTY ----------------
+@app.route("/admin/edit_faculty/<int:id>", methods=["GET", "POST"])
 def edit_faculty(id):
     if "admin_id" not in session:
         return redirect("/admin_login")
@@ -225,27 +265,36 @@ def edit_faculty(id):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    if request.method == "POST":
-        cursor.execute("""
-            UPDATE faculty 
-            SET name=%s, email=%s, subject=%s
-            WHERE faculty_id=%s
-        """, (
-            request.form["name"],
-            request.form["email"],
-            request.form["subject"],
-            id
-        ))
-        conn.commit()
-        conn.close()
-        return redirect("/admin/view_faculty")
-
     cursor.execute("SELECT * FROM faculty WHERE faculty_id=%s", (id,))
     faculty = cursor.fetchone()
+
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        dept = request.form["department_id"]
+
+        cursor.execute("""
+        UPDATE faculty
+        SET name=%s, email=%s, department_id=%s
+        WHERE faculty_id=%s
+        """, (name, email, dept, id))
+
+        conn.commit()
+        conn.close()
+        flash("Faculty updated", "success")
+        return redirect("/admin/view_faculty")
+
     conn.close()
+    return render_template(
+        "edit_faculty.html",
+        faculty=faculty,
+        departments=departments
+    )
 
-    return render_template("edit_faculty.html", faculty=faculty)
-
+# ---------------- DELETE FACULTY ----------------
 @app.route("/admin/delete_faculty/<int:id>")
 def delete_faculty(id):
     if "admin_id" not in session:
@@ -253,54 +302,136 @@ def delete_faculty(id):
 
     conn = get_connection()
     cursor = conn.cursor()
+
     cursor.execute("DELETE FROM faculty WHERE faculty_id=%s", (id,))
     conn.commit()
     conn.close()
 
+    flash("Faculty deleted", "danger")
     return redirect("/admin/view_faculty")
 
-
-
-# end of testing
-
-
 # ---------------- STUDENT LOGIN ----------------
-@app.route("/student_login", methods=[ "POST"])
+@app.route("/student_login", methods=["POST"])
 def student_login():
-        roll_no = request.form.get("roll_no")
-        password = request.form.get("password")
+    roll_no = request.form.get("roll_no")
+    password = request.form.get("password")
 
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
 
-        cursor.execute(
-            "SELECT * FROM students WHERE roll_no=%s AND password=%s",
-            (roll_no, password)
-        )
-        student = cursor.fetchone()
-        conn.close()
+    cursor.execute(
+        "SELECT * FROM students WHERE roll_no=%s AND password=%s",
+        (roll_no, password),
+    )
+    student = cursor.fetchone()
+    conn.close()
 
-        if student:
-            session["student_id"] = student["student_id"]
-            session["roll_no"] = student["roll_no"]
-            return redirect("/student_dashboard")
-        else:
-            return 'Invalid roll number or password'
-        
-            
+    if student:
+        session["student_id"] = student["student_id"]
+        return redirect("/student_dashboard")
+    else:
+        flash("Invalid roll number or password", "danger")
+        return redirect("/")
 
-
-
-@app.route("/student_qr")
-def student_qr():
+# ---------------- STUDENT DASHBOARD ----------------
+@app.route("/student_dashboard")
+def student_dashboard():
     if "student_id" not in session:
-        return redirect("/login")
+        return redirect("/")
 
-    qr_file = f"{session['roll_no']}.png"
-    return render_template("student_qr.html", qr_file=qr_file)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
 
+    student_id = session["student_id"]
 
+    # 👤 Profile
+    cursor.execute("""
+    SELECT students.*, courses.course_name, departments.department_name
+    FROM students
+    JOIN courses ON students.course_id = courses.course_id
+    JOIN departments ON students.department_id = departments.department_id
+    WHERE student_id=%s
+    """, (student_id,))
+    student = cursor.fetchone()
 
+    # 📊 Attendance
+    cursor.execute("""
+    SELECT 
+        subjects.subject_name,
+        attendance.date,
+        attendance.status,
+        faculty.name AS faculty_name
+    FROM attendance
+    JOIN subjects ON attendance.subject_id = subjects.subject_id
+    JOIN faculty_subjects fs ON fs.subject_id = subjects.subject_id
+    JOIN faculty ON fs.faculty_id = faculty.faculty_id
+    WHERE attendance.student_id=%s
+    ORDER BY attendance.date DESC
+    """, (student_id,))
+    attendance = cursor.fetchall()
+
+    # 🔔 Notices
+    cursor.execute("""
+    SELECT COUNT(*) AS total
+    FROM notices
+    WHERE target_type IN ('ALL','STUDENT')
+    """)
+    notice_count = cursor.fetchone()["total"]
+
+    cursor.execute("""
+    SELECT * FROM notices
+    WHERE target_type IN ('ALL','STUDENT')
+    ORDER BY created_on DESC
+    """)
+    notices = cursor.fetchall()
+
+    # 💰 Fee Details
+    cursor.execute("""
+    SELECT 
+        f.total_fee,
+        COALESCE(SUM(fp.amount_paid), 0) AS paid_amount
+    FROM students s
+    JOIN fees f ON s.course_id = f.course_id
+    LEFT JOIN fee_payments fp ON s.student_id = fp.student_id
+    WHERE s.student_id = %s
+    GROUP BY f.total_fee
+    """, (student_id,))
+
+    fee_data = cursor.fetchone()
+
+    if fee_data:
+        total_fee = fee_data["total_fee"]
+        paid = fee_data["paid_amount"]
+        pending = total_fee - paid
+    else:
+        total_fee = 0
+        paid = 0
+        pending = 0
+
+    # 💳 Payment History
+    cursor.execute("""
+    SELECT amount_paid, payment_date
+    FROM fee_payments
+    WHERE student_id=%s
+    ORDER BY payment_date DESC
+    """, (student_id,))
+    payments = cursor.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "student_dashboard.html",
+        student=student,
+        attendance=attendance,
+        notice_count=notice_count,
+        notices=notices,
+        total_fee=total_fee,
+        paid=paid,
+        pending=pending,
+        payments=payments
+    )
+
+# ---------------- FACULTY LOGIN ----------------
 @app.route("/faculty_login", methods=["GET", "POST"])
 def faculty_login():
     if request.method == "POST":
@@ -310,63 +441,148 @@ def faculty_login():
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        cursor.execute("""
-            SELECT * FROM faculty
-            WHERE email=%s AND password=%s
-        """, (email, password))
-
+        cursor.execute(
+            "SELECT * FROM faculty WHERE email=%s AND password=%s",
+            (email, password),
+        )
         faculty = cursor.fetchone()
         conn.close()
 
         if faculty:
             session["faculty_id"] = faculty["faculty_id"]
-            session["faculty_name"] = faculty["name"]
-            session["subject"] = faculty["subject"]
             return redirect("/faculty_dashboard")
         else:
-            return "Invalid email or password"
+            flash("Invalid email or password", "danger")
 
-    return render_template("faculty_login.html")
+    return render_template("index.html")
 
-
-
-
+# ---------------- FACULTY DASHBOARD ----------------
 @app.route("/faculty_dashboard")
 def faculty_dashboard():
     if "faculty_id" not in session:
         return redirect("/faculty_login")
 
-    from database import get_connection
+    faculty_id = session["faculty_id"]
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute(
-        "SELECT name, subject FROM faculty WHERE faculty_id=%s",
-        (session["faculty_id"],)
-    )
+    # faculty profile
+    cursor.execute("""
+    SELECT faculty.*, departments.department_name
+    FROM faculty
+    JOIN departments ON faculty.department_id = departments.department_id
+    WHERE faculty_id=%s
+    """, (faculty_id,))
     faculty = cursor.fetchone()
+
+    # subjects
+    cursor.execute("""
+    SELECT 
+        subjects.subject_id,
+        subjects.subject_name, 
+        courses.course_name
+    FROM faculty_subjects fs
+    JOIN subjects ON fs.subject_id = subjects.subject_id
+    JOIN courses ON subjects.course_id = courses.course_id
+    WHERE fs.faculty_id=%s
+    """, (faculty_id,))
+    subjects = cursor.fetchall()
+
+    # 🔔 notice count
+    cursor.execute("""
+    SELECT COUNT(*) AS total
+    FROM notices
+    WHERE target_type IN ('ALL','FACULTY')
+    """)
+    notice_count = cursor.fetchone()["total"]
+
+    # NOTICE DATA
+    cursor.execute("""
+    SELECT * FROM notices
+    WHERE target_type IN ('ALL','FACULTY')
+    ORDER BY created_on DESC
+    """)
+    notices = cursor.fetchall()
+
     conn.close()
 
     return render_template(
         "faculty_dashboard.html",
-        faculty=faculty
+        faculty=faculty,
+        subjects=subjects,
+        notice_count=notice_count,
+        notices=notices 
     )
 
+# ---------------- SELECT SUBJECT ----------------
+@app.route("/select_subject", methods=["POST"])
+def select_subject():
 
 
-@app.route("/mark_attendance")
-def mark_attendance():
-    import cv2
-    from datetime import datetime
-    from database import get_connection
-    from flask import flash, redirect, url_for
+    subject_id = request.form.get("subject_id")
+
+    if not subject_id:
+        flash("Please select a subject first", "warning")
+        return redirect("/faculty_dashboard")
+
+    session["subject_id"] = int(subject_id)
+
+    return redirect("/mark_attendance")
+
+# ---------------- START ATTENDANCE ----------------
+@app.route("/start_attendance", methods=["POST"])
+def start_attendance():
 
     if "faculty_id" not in session:
         return redirect("/faculty_login")
 
-    faculty_id = session["faculty_id"]
-    subject = session["subject"]
+    subject_id = request.form.get("subject_id")
+
+    if not subject_id:
+        flash("Please select subject", "warning")
+        return redirect("/faculty_dashboard")
+
+    subject_id = int(subject_id)
+    session["subject_id"] = subject_id
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    today = datetime.now().date()
+
+    # 🔥 STEP 1: sabko ABSENT mark karo
+    cursor.execute("""
+    SELECT student_id FROM students
+    WHERE course_id = (
+        SELECT course_id FROM subjects WHERE subject_id=%s
+    )
+    """, (subject_id,))
+
+    students = cursor.fetchall()
+
+    for s in students:
+        try:
+            cursor.execute("""
+            INSERT INTO attendance (student_id, subject_id, date, status, method)
+            VALUES (%s,%s,%s,'Absent','Manual')
+            """, (s[0], subject_id, today))
+        except:
+            pass  # already exist ignore
+
+    conn.commit()
+    conn.close()
+
+    # 🔥 STEP 2: camera start
+    return redirect("/mark_attendance")
+
+@app.route("/mark_attendance")
+def mark_attendance():
+
+    if "faculty_id" not in session or "subject_id" not in session:
+        return redirect("/faculty_dashboard")
+
+    subject_id = session["subject_id"]
 
     detector = cv2.QRCodeDetector()
     cap = cv2.VideoCapture(0)
@@ -385,9 +601,9 @@ def mark_attendance():
             conn = get_connection()
             cursor = conn.cursor()
 
+            # ✅ student find
             cursor.execute(
-                "SELECT student_id FROM students WHERE roll_no=%s",
-                (roll_no,)
+                "SELECT student_id FROM students WHERE roll_no=%s", (roll_no,)
             )
             result = cursor.fetchone()
 
@@ -400,30 +616,34 @@ def mark_attendance():
 
             student_id = result[0]
 
+            # ✅ check current status
             cursor.execute("""
-                SELECT 1 FROM attendance
-                WHERE student_id=%s AND subject=%s AND date=%s
-            """, (student_id, subject, now.date()))
+            SELECT status FROM attendance
+            WHERE student_id=%s AND subject_id=%s AND date=%s
+            """, (student_id, subject_id, now.date()))
 
-            if cursor.fetchone():
+            record = cursor.fetchone()
+
+            if not record:
                 conn.close()
                 cap.release()
                 cv2.destroyAllWindows()
-                flash("Attendance already marked", "warning")
+                flash("Attendance not initialized", "warning")
                 return redirect("/faculty_dashboard")
 
+            if record[0] == "Present":
+                conn.close()
+                cap.release()
+                cv2.destroyAllWindows()
+                flash("Already marked!", "warning")
+                return redirect("/faculty_dashboard")
+
+            # ✅ update only once
             cursor.execute("""
-                INSERT INTO attendance
-                (student_id, faculty_id, subject, date, time, method)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                student_id,
-                faculty_id,
-                subject,
-                now.date(),
-                now.time(),
-                "QR"
-            ))
+            UPDATE attendance
+            SET status='Present', method='QR'
+            WHERE student_id=%s AND subject_id=%s AND date=%s
+            """, (student_id, subject_id, now.date()))
 
             conn.commit()
             conn.close()
@@ -433,7 +653,8 @@ def mark_attendance():
             flash("Attendance marked successfully", "success")
             return redirect("/faculty_dashboard")
 
-        cv2.imshow("Scan QR", frame)
+        cv2.imshow("Scan QR - Press ESC to exit", frame)
+
         if cv2.waitKey(1) == 27:
             break
 
@@ -442,59 +663,634 @@ def mark_attendance():
     flash("Camera closed", "info")
     return redirect("/faculty_dashboard")
 
+# ----------------- Attendance Records ----------------
 
-# ---------------- STUDENT DASHBOARD ----------------
-@app.route("/student_dashboard")
-def student_dashboard():
-    if "student_id" not in session:
-        return redirect("/student_login")
+@app.route("/faculty/attendance_records")
+def faculty_attendance_records():
+    if "faculty_id" not in session:
+        return redirect("/faculty_login")
+
+    faculty_id = session["faculty_id"]
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Student Info
-    cursor.execute(
-        "SELECT * FROM students WHERE student_id=%s",
-        (session["student_id"],)
+    cursor.execute("""
+    SELECT a.date, s.roll_no, s.name AS student_name,
+           sub.subject_name, c.course_name
+    FROM attendance a
+    JOIN students s ON a.student_id = s.student_id
+    JOIN subjects sub ON a.subject_id = sub.subject_id
+    JOIN courses c ON sub.course_id = c.course_id
+    WHERE sub.subject_id IN (
+        SELECT subject_id FROM faculty_subjects WHERE faculty_id=%s
     )
-    student = cursor.fetchone()
+    ORDER BY a.date DESC
+    """, (faculty_id,))
 
-    # Attendance History 
-    cursor.execute( 
-        "SELECT subject,date, time, method FROM attendance WHERE student_id=%s ORDER BY date DESC", 
-        (session["student_id"],)
-    ) 
-    attendance = cursor.fetchall()
-
+    records = cursor.fetchall()
     conn.close()
 
-    qr_file = f"{student['roll_no']}.png"
+    return render_template("attendance_records.html", records=records)
 
+# ---------------- ADD DEPARTMENT ----------------
+
+@app.route("/admin/add_department", methods=["GET", "POST"])
+def add_department():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    if request.method == "POST":
+        name = request.form["department_name"]
+
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO departments (department_name) VALUES (%s)", (name,)
+        )
+        conn.commit()
+        conn.close()
+
+        flash("Department added", "success")
+        return redirect("/admin/view_departments")
+
+    return render_template("add_department.html")
+
+# ---------------- VIEW DEPARTMENTS ----------------
+
+@app.route("/admin/view_departments")
+def view_departments():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+    conn.close()
+
+    return render_template("view_departments.html", departments=departments)
+
+# ---------------- EDIT DEPARTMENT ----------------
+
+@app.route("/admin/edit_department/<int:id>", methods=["GET", "POST"])
+def edit_department(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM departments WHERE department_id=%s", (id,))
+    department = cursor.fetchone()
+
+    if request.method == "POST":
+        name = request.form["department_name"]
+
+        cursor.execute("""
+        UPDATE departments
+        SET department_name=%s
+        WHERE department_id=%s
+        """, (name, id))
+
+        conn.commit()
+        conn.close()
+        return redirect("/admin/view_departments")
+
+    conn.close()
+    return render_template("edit_department.html", department=department)
+
+# ---------------- DELETE DEPARTMENT ----------------
+
+@app.route("/admin/delete_department/<int:id>")
+def delete_department(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM departments WHERE department_id=%s", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin/view_departments")
+
+# ---------------- ADD COURSE ----------------
+
+@app.route("/admin/add_course", methods=["GET", "POST"])
+def add_course():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
+    if request.method == "POST":
+        name = request.form["course_name"]
+        duration = request.form["duration"]
+        fee = request.form["fee"]
+        dept_id = request.form["department_id"]
+
+        cursor.execute(
+            """
+            INSERT INTO courses (course_name, duration_years, total_fee, department_id)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (name, duration, fee, dept_id),
+        )
+
+        conn.commit()
+        conn.close()
+
+        flash("Course added", "success")
+        return redirect("/admin/view_courses")
+
+    conn.close()
+    return render_template("add_course.html", departments=departments)
+
+# ---------------- VIEW COURSES ----------------
+
+@app.route("/admin/view_courses")
+def view_courses():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+    SELECT courses.*, departments.department_name
+    FROM courses
+    JOIN departments
+    ON courses.department_id = departments.department_id
+    """)
+
+    courses = cursor.fetchall()
+    conn.close()
+
+    return render_template("view_courses.html", courses=courses)
+
+# ---------------- EDIT COURSE ----------------
+
+@app.route("/admin/edit_course/<int:id>", methods=["GET", "POST"])
+def edit_course(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM courses WHERE course_id=%s", (id,))
+    course = cursor.fetchone()
+
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
+    if request.method == "POST":
+        name = request.form["course_name"]
+        duration = request.form["duration"]
+        fee = request.form["fee"]
+        dept = request.form["department_id"]
+
+        cursor.execute("""
+        UPDATE courses
+        SET course_name=%s, duration_years=%s,
+            total_fee=%s, department_id=%s
+        WHERE course_id=%s
+        """, (name, duration, fee, dept, id))
+
+        conn.commit()
+        conn.close()
+        return redirect("/admin/view_courses")
+
+    conn.close()
+    return render_template("edit_course.html", course=course, departments=departments)
+
+# ---------------- DELETE COURSE ----------------
+
+@app.route("/admin/delete_course/<int:id>")
+def delete_course(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM courses WHERE course_id=%s", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin/view_courses")
+
+# ---------------- ADD SUBJECT ----------------
+
+@app.route("/admin/add_subject", methods=["GET", "POST"])
+def add_subject():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM courses")
+    courses = cursor.fetchall()
+
+    if request.method == "POST":
+        name = request.form["subject_name"]
+        semester = request.form["semester"]
+        course_id = request.form["course_id"]
+
+        cursor.execute("""
+        INSERT INTO subjects(subject_name, semester, course_id)
+        VALUES(%s, %s, %s)
+        """, (name, semester, course_id))
+
+        conn.commit()
+        conn.close()
+        return redirect("/admin/view_subjects")
+
+    conn.close()
+    return render_template("add_subject.html", courses=courses)
+
+# ---------------- VIEW SUBJECTS ----------------
+
+@app.route("/admin/view_subjects")
+def view_subjects():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+    SELECT subjects.*, courses.course_name
+    FROM subjects
+    JOIN courses ON subjects.course_id = courses.course_id
+    """)
+
+    subjects = cursor.fetchall()
+    conn.close()
+
+    return render_template("view_subjects.html", subjects=subjects)
+
+# ---------------- EDIT SUBJECT ----------------
+
+@app.route("/admin/edit_subject/<int:id>", methods=["GET", "POST"])
+def edit_subject(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM subjects WHERE subject_id=%s", (id,))
+    subject = cursor.fetchone()
+
+    cursor.execute("SELECT * FROM courses")
+    courses = cursor.fetchall()
+
+    if request.method == "POST":
+        name = request.form["subject_name"]
+        semester = request.form["semester"]
+        course_id = request.form["course_id"]
+
+        cursor.execute("""
+        UPDATE subjects
+        SET subject_name=%s, semester=%s, course_id=%s
+        WHERE subject_id=%s
+        """, (name, semester, course_id, id))
+
+        conn.commit()
+        conn.close()
+        return redirect("/admin/view_subjects")
+
+    conn.close()
+    return render_template("edit_subject.html", subject=subject, courses=courses)
+
+# ---------------- DELETE SUBJECT ----------------
+
+@app.route("/admin/delete_subject/<int:id>")
+def delete_subject(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM subjects WHERE subject_id=%s", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin/view_subjects")
+
+# ----------------- Assign Faculty to Subject ----------------
+
+@app.route("/admin/assign_subject", methods=["GET", "POST"])
+def assign_subject():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # dropdown data
+    cursor.execute("SELECT faculty_id, name FROM faculty")
+    faculty = cursor.fetchall()
+
+    cursor.execute("SELECT subject_id, subject_name FROM subjects")
+    subjects = cursor.fetchall()
+
+    if request.method == "POST":
+        faculty_id = request.form["faculty_id"]
+        subject_id = request.form["subject_id"]
+
+        try:
+            cursor.execute("""
+            INSERT INTO faculty_subjects (faculty_id, subject_id)
+            VALUES (%s, %s)
+            """, (faculty_id, subject_id))
+            conn.commit()
+        except:
+            pass  # duplicate assign ignore
+
+        conn.close()
+        return redirect("/admin/view_assigned_subjects")
+
+    conn.close()
     return render_template(
-        "student_dashboard.html",
-        student=student,
-        attendance=attendance,
-        qr_file=qr_file
+        "assign_subject.html",
+        faculty=faculty,
+        subjects=subjects
     )
 
+# ----------------- View Assigned Subjects ----------------
 
+@app.route("/admin/view_assigned_subjects")
+def view_assigned_subjects():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+    SELECT fs.id,
+           faculty.name AS faculty_name,
+           subjects.subject_name
+    FROM faculty_subjects fs
+    JOIN faculty ON fs.faculty_id = faculty.faculty_id
+    JOIN subjects ON fs.subject_id = subjects.subject_id
+    """)
+
+    data = cursor.fetchall()
+    conn.close()
+
+    return render_template("view_assigned_subjects.html", data=data)
+
+# ----------------- Edit Assigned Subject ----------------
+
+@app.route("/admin/edit_assignment/<int:id>", methods=["GET", "POST"])
+def edit_assignment(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM faculty_subjects WHERE id=%s", (id,))
+    assignment = cursor.fetchone()
+
+    cursor.execute("SELECT faculty_id, name FROM faculty")
+    faculty = cursor.fetchall()
+
+    cursor.execute("SELECT subject_id, subject_name FROM subjects")
+    subjects = cursor.fetchall()
+
+    if request.method == "POST":
+        faculty_id = request.form["faculty_id"]
+        subject_id = request.form["subject_id"]
+
+        cursor.execute("""
+        UPDATE faculty_subjects
+        SET faculty_id=%s, subject_id=%s
+        WHERE id=%s
+        """, (faculty_id, subject_id, id))
+
+        conn.commit()
+        conn.close()
+        return redirect("/admin/view_assigned_subjects")
+
+    conn.close()
+    return render_template(
+        "edit_assignment.html",
+        assignment=assignment,
+        faculty=faculty,
+        subjects=subjects
+    )
+
+# ----------------- Delete Assigned Subject ----------------
+
+@app.route("/admin/delete_assignment/<int:id>")
+def delete_assignment(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM faculty_subjects WHERE id=%s", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin/view_assigned_subjects")
+
+# ---------------- Add Notice ----------------
+
+@app.route("/admin/add_notice", methods=["GET", "POST"])
+def add_notice():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # department dropdown ke liye
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+
+    if request.method == "POST":
+        title = request.form["title"]
+        message = request.form["message"]
+        target_type = request.form["target_type"]
+        department_id = request.form.get("department_id")
+
+        cursor.execute("""
+        INSERT INTO notices (title, message, target_type, department_id)
+        VALUES (%s, %s, %s, %s)
+        """, (title, message, target_type, department_id or None))
+
+        conn.commit()
+        conn.close()
+        return redirect("/admin/view_notices")
+
+    conn.close()
+    return render_template("add_notice.html", departments=departments)
+
+# ---------------- View Notices ----------------
+
+@app.route("/admin/view_notices")
+def view_notices():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+    SELECT notices.*, departments.department_name
+    FROM notices
+    LEFT JOIN departments
+    ON notices.department_id = departments.department_id
+    ORDER BY created_on DESC
+    """)
+
+    notices = cursor.fetchall()
+    conn.close()
+
+    return render_template("view_notices.html", notices=notices)
+
+# ----------------- Delete Notice ----------------
+
+@app.route("/admin/delete_notice/<int:id>")
+def delete_notice(id):
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM notices WHERE notice_id=%s", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/admin/view_notices")
+
+# ----------------- Set Course Fee ----------------
+@app.route("/admin/set_fee", methods=["GET", "POST"])
+def set_fee():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM courses")
+    courses = cursor.fetchall()
+
+    if request.method == "POST":
+        course_id = request.form["course_id"]
+        total_fee = request.form["total_fee"]
+
+        cursor.execute("""
+        INSERT INTO fees (course_id, total_fee)
+        VALUES (%s, %s)
+        ON DUPLICATE KEY UPDATE total_fee=%s
+        """, (course_id, total_fee, total_fee))
+
+        conn.commit()
+        conn.close()
+
+        flash("Fee set successfully", "success")
+        return redirect("/admin/set_fee")
+
+    conn.close()
+    return render_template("set_fee.html", courses=courses)
+
+# ----------------- Student Fees ----------------
+@app.route("/admin/student_fees")
+def student_fees():
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+    SELECT 
+        s.student_id,
+        s.name,
+        s.roll_no,
+        c.course_name,
+        f.total_fee,
+        IFNULL(SUM(fp.amount_paid),0) AS paid,
+        (f.total_fee - IFNULL(SUM(fp.amount_paid),0)) AS pending
+    FROM students s
+    JOIN courses c ON s.course_id = c.course_id
+    JOIN fees f ON c.course_id = f.course_id
+    LEFT JOIN fee_payments fp ON s.student_id = fp.student_id
+    GROUP BY s.student_id
+    """)
+
+    students = cursor.fetchall()
+    conn.close()
+
+    return render_template("student_fees.html", students=students)
+
+# ----------------- Add Fee Payment ----------------
+@app.route("/admin/add_payment/<int:student_id>", methods=["GET", "POST"])
+def add_payment(student_id):
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM students WHERE student_id=%s", (student_id,))
+    student = cursor.fetchone()
+
+    cursor.execute("""
+    SELECT 
+        f.total_fee,
+        IFNULL(SUM(fp.amount_paid),0) AS paid
+    FROM students s
+    JOIN fees f ON s.course_id = f.course_id
+    LEFT JOIN fee_payments fp ON s.student_id = fp.student_id
+    WHERE s.student_id=%s
+    """, (student_id,))
+
+    fee = cursor.fetchone()
+    pending = fee["total_fee"] - fee["paid"]
+
+    if request.method == "POST":
+        amount = int(request.form["amount"])
+
+        if amount > pending:
+            flash("Amount exceeds pending", "danger")
+            return redirect(request.url)
+
+        cursor.execute("""
+        INSERT INTO fee_payments (student_id, amount_paid, payment_date)
+        VALUES (%s,%s,CURDATE())
+        """, (student_id, amount))
+
+        conn.commit()
+        conn.close()
+
+        flash("Payment added", "success")
+        return redirect("/admin/student_fees")
+
+    conn.close()
+    return render_template("add_payment.html", student=student, fee=fee, pending=pending)
 
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
-
-
-
-@app.route("/test")
-def test():
-    return "TEST OK"
-
-
-
-
-
 
 if __name__ == "__main__":
     app.run(debug=True)

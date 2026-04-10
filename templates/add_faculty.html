@@ -13,7 +13,13 @@
         <input class="form-control mb-2" name="name" placeholder="Faculty Name" required>
         <input class="form-control mb-2" name="email" placeholder="Email" required>
         <input class="form-control mb-2" name="password" placeholder="Password" required>
-        <input class="form-control mb-2" name="subject" placeholder="Subject" required>
+
+        <label>Department</label>
+        <select class="form-control mb-2" name="department_id">
+            {% for d in departments %}
+            <option value="{{ d.department_id }}">{{ d.department_name }}</option>
+            {% endfor %}
+        </select>
 
         <button class="btn btn-success">Register Faculty</button>
         <a href="/admin_dashboard" class="btn btn-secondary">Back</a>

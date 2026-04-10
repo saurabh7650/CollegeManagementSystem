@@ -12,7 +12,7 @@
 
     <form method="get" class="mb-3">
         <div class="input-group">
-            <input class="form-control" name="search" placeholder="Search by Name or Subject">
+            <input class="form-control" name="search" placeholder="Search by Name or Email">
             <button class="btn btn-dark">Search</button>
             <a href="/admin/view_faculty" class="btn btn-secondary">Reset</a>
         </div>
@@ -20,7 +20,11 @@
 
     <table class="table table-bordered table-striped">
         <tr>
-            <th>ID</th><th>Name</th><th>Email</th><th>Subject</th><th>Action</th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Action</th>
         </tr>
 
         {% for f in faculty %}
@@ -28,7 +32,7 @@
             <td>{{ f.faculty_id }}</td>
             <td>{{ f.name }}</td>
             <td>{{ f.email }}</td>
-            <td>{{ f.subject }}</td>
+            <td>{{ f.department_name }}</td>
             <td>
                 <a class="btn btn-warning btn-sm" href="/admin/edit_faculty/{{ f.faculty_id }}">Edit</a>
                 <a class="btn btn-danger btn-sm"

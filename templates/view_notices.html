@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Notices</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container mt-4">
+
+<h3>Published Notices</h3>
+
+<table class="table table-bordered table-striped">
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>Message</th>
+<th>Target</th>
+<th>Department</th>
+<th>Date</th>
+<th>Action</th>
+</tr>
+
+{% for n in notices %}
+<tr>
+<td>{{ n.notice_id }}</td>
+<td>{{ n.title }}</td>
+<td>
+  <div class="bg-light p-2 rounded">
+    {{ n.message }}
+  </div>
+</td>
+<td>{{ n.target_type }}</td>
+<td>{{ n.department_name or 'All' }}</td>
+<td>{{ n.created_on }}</td>
+
+<td>
+<a href="/admin/delete_notice/{{ n.notice_id }}"
+class="btn btn-danger btn-sm"
+onclick="return confirm('Delete this notice?')">
+Delete
+</a>
+</td>
+</tr>
+{% endfor %}
+
+</table>
+
+<a href="/admin_dashboard" class="btn btn-secondary">Back</a>
+
+</div>
+
+</body>
+</html>
