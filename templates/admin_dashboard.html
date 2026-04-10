@@ -145,22 +145,92 @@
       </div>
       <!-- 💰 Fee Management -->
       <div class="row mt-4">
-        <div class="col-md-6">
-          <div class="card shadow">
-            <div class="card-body text-center">
-              <h4>💰 Fee Management</h4>
+        <div class="card shadow">
+          <div class="card-body text-center">
+            <h4>💰 Fee Management</h4>
 
-              <a href="/admin/set_fee" class="btn btn-primary mt-2">
-                Set Course Fee
-              </a>
+            <a href="/admin/set_fee" class="btn btn-primary mt-2">
+              Set Course Fee
+            </a>
 
-              <a href="/admin/student_fees" class="btn btn-outline-dark mt-2">
-                Payment History
-              </a>
+            <a href="/admin/student_fees" class="btn btn-outline-dark mt-2">
+              Payment History
+            </a>
+          </div>
+        </div>
+      </div>
+      <!-- 📊 REPORT MANAGEMENT -->
+      <div class="mt-4">
+        <div class="card shadow-lg border-0 rounded-4">
+          <div class="card-header bg-white text-dark text-center rounded-top-4">
+            <h4 class="mb-0">📊 Report Management</h4>
+          </div>
+
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <a
+                  href="/admin/attendance_report"
+                  class="btn btn-success w-100"
+                >
+                  📊 Attendance Report
+                </a>
+              </div>
+
+              <div class="col-md-6">
+                <a href="/admin/student_report" class="btn btn-primary w-100">
+                  👨‍🎓 Student Report
+                </a>
+              </div>
+
+              <div class="col-md-6">
+                <a href="/admin/fee_report" class="btn btn-warning w-100">
+                  💰 Fee Report
+                </a>
+              </div>
+
+              <div class="col-md-6">
+                <a
+                  href="/admin/faculty_report"
+                  class="btn btn-info w-100 text-white"
+                >
+                  👨‍🏫 Faculty Report
+                </a>
+              </div>
+
+              <div class="col-md-6">
+                <a
+                  href="/admin/course_subject_report"
+                  class="btn btn-secondary w-100"
+                >
+                  📚 Course & Subject
+                </a>
+              </div>
+
+              <div class="col-md-6">
+                <a href="/admin/notice_report" class="btn btn-dark w-100">
+                  📢 Notice Report
+                </a>
+              </div>
+
+              <div class="col-md-12">
+                <a href="/admin/daily_report" class="btn btn-danger w-100">
+                  📈 Daily Activity Report
+                </a>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 🔻 Footer -->
+    <footer class="bg-dark text-white mt-5">
+      <div class="container py-3 text-center">
+        <p class="mb-1">© 2026 College Management System</p>
+
+        <small class="text-white"> Developed by Saurabh Kumar 💻 </small>
+      </div>
+    </footer>
   </body>
 </html>

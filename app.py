@@ -5,6 +5,9 @@ from qr_generator import generate_qr
 import os
 import cv2
 from datetime import datetime
+import pandas as pd
+from flask import send_file
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = "college_management_system_secret_key"
@@ -85,6 +88,9 @@ def admin_add_student():
         course_id = request.form.get("course_id")
         dept_id = request.form.get("department_id")
 
+        # 🔥 ADD THIS LINE
+        admission_date = datetime.now().date()
+
         os.makedirs("static/images", exist_ok=True)
         os.makedirs("static/qr_codes", exist_ok=True)
 
@@ -97,13 +103,15 @@ def admin_add_student():
         cursor.execute(
             """
             INSERT INTO students
-            (name, address, roll_no, password, photo, qr_code, course_id, department_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (name, address, roll_no, password, photo, qr_code, course_id, department_id, admission_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (name, address, roll, password, image_path, qr_path, course_id, dept_id),
+            (name, address, roll, password, image_path, qr_path, course_id, dept_id, admission_date),
         )
+
         conn.commit()
         conn.close()
+
         flash("Student added successfully", "success")
         return redirect("/admin/view_students")
 
@@ -1285,6 +1293,316 @@ def add_payment(student_id):
 
     conn.close()
     return render_template("add_payment.html", student=student, fee=fee, pending=pending)
+
+# ----------------- Attendance Report ----------------
+@app.route("/admin/attendance_report")
+def attendance_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        s.name AS student_name,
+        s.roll_no,
+        sub.subject_name,
+        c.course_name,
+        a.date,
+        a.status
+    FROM attendance a
+    JOIN students s ON a.student_id = s.student_id
+    JOIN subjects sub ON a.subject_id = sub.subject_id
+    JOIN courses c ON sub.course_id = c.course_id
+    ORDER BY a.date DESC
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    # Excel file memory me banana
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="attendance_report.xlsx",
+        as_attachment=True
+    )
+
+# ---------------- Student Report ----------------
+@app.route("/admin/student_report")
+def student_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        s.name AS student_name,
+        s.roll_no,
+        s.address,
+        d.department_name,
+        c.course_name,
+        s.admission_date
+    FROM students s
+    JOIN departments d ON s.department_id = d.department_id
+    JOIN courses c ON s.course_id = c.course_id
+    ORDER BY s.name
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="student_report.xlsx",
+        as_attachment=True
+    )
+# ---------------- Fee Report ----------------
+@app.route("/admin/fee_report")
+def fee_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        s.name AS student_name,
+        s.roll_no,
+        c.course_name,
+        f.total_fee,
+        IFNULL(SUM(fp.amount_paid), 0) AS paid_amount,
+        (f.total_fee - IFNULL(SUM(fp.amount_paid), 0)) AS pending_amount
+    FROM students s
+    JOIN courses c ON s.course_id = c.course_id
+    JOIN fees f ON f.course_id = c.course_id
+    LEFT JOIN fee_payments fp ON fp.student_id = s.student_id
+    GROUP BY s.student_id, f.total_fee
+    ORDER BY s.name
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="fee_report.xlsx",
+        as_attachment=True
+    )
+# ---------------- Faculty Report ----------------
+@app.route("/admin/faculty_report")
+def faculty_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        f.name AS faculty_name,
+        f.email,
+        d.department_name,
+        c.course_name,
+        s.subject_name
+    FROM faculty f
+    JOIN departments d ON f.department_id = d.department_id
+    LEFT JOIN faculty_subjects fs ON fs.faculty_id = f.faculty_id
+    LEFT JOIN subjects s ON fs.subject_id = s.subject_id
+    LEFT JOIN courses c ON s.course_id = c.course_id
+    ORDER BY f.name
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="faculty_report.xlsx",
+        as_attachment=True
+    )
+
+# ---------------- Course & Subject Report ----------------
+@app.route("/admin/course_subject_report")
+def course_subject_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        d.department_name,
+        c.course_name,
+        s.subject_name
+    FROM courses c
+    JOIN departments d ON c.department_id = d.department_id
+    LEFT JOIN subjects s ON s.course_id = c.course_id
+    ORDER BY d.department_name, c.course_name
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="course_subject_report.xlsx",
+        as_attachment=True
+    )
+
+# ---------------- Notice Report ----------------
+@app.route("/admin/notice_report")
+def notice_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        n.title,
+        n.message,
+        n.target_type,
+        IFNULL(d.department_name, 'ALL') AS department,
+        n.created_on
+    FROM notices n
+    LEFT JOIN departments d ON n.department_id = d.department_id
+    ORDER BY n.created_on DESC
+    """
+
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="notice_report.xlsx",
+        as_attachment=True
+    )
+
+# ----------------- Daily Report ----------------
+@app.route("/admin/daily_report")
+def daily_report():
+
+    if "admin_id" not in session:
+        return redirect("/admin_login")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 📅 Today date
+    today = datetime.now().date()
+
+    # 📊 Attendance Summary
+    cursor.execute("""
+        SELECT 
+            COUNT(*) AS total_attendance,
+            SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) AS present_count,
+            SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) AS absent_count
+        FROM attendance
+        WHERE date=%s
+    """, (today,))
+    attendance_data = cursor.fetchone()
+
+    # 💰 Fee Collection Today
+    cursor.execute("""
+        SELECT 
+            IFNULL(SUM(amount_paid), 0) AS total_collection
+        FROM fee_payments
+        WHERE DATE(payment_date)=%s
+    """, (today,))
+    fee_data = cursor.fetchone()
+
+    conn.close()
+
+    # 📄 DataFrame banana
+    data = [{
+        "Date": today,
+        "Total Attendance": attendance_data["total_attendance"] or 0,
+        "Present": attendance_data["present_count"] or 0,
+        "Absent": attendance_data["absent_count"] or 0,
+        "Total Fee Collection": fee_data["total_collection"] or 0
+    }]
+
+    df = pd.DataFrame(data)
+
+    # Excel generate
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="daily_activity_report.xlsx",
+        as_attachment=True
+    )
+
+# ---------------- faculty attendance report ----------------
+@app.route("/faculty/attendance_report")
+def faculty_attendance_report():
+
+    if "faculty_id" not in session:
+        return redirect("/faculty_login")
+
+    faculty_id = session["faculty_id"]
+
+    conn = get_connection()
+
+    query = """
+    SELECT 
+        st.name AS student_name,
+        st.roll_no,
+        sub.subject_name,
+        a.date,
+        a.status
+    FROM attendance a
+    JOIN students st ON a.student_id = st.student_id
+    JOIN subjects sub ON a.subject_id = sub.subject_id
+    JOIN faculty_subjects fs ON fs.subject_id = sub.subject_id
+    WHERE fs.faculty_id = %s
+    ORDER BY a.date DESC
+    """
+
+    df = pd.read_sql(query, conn, params=(faculty_id,))
+    conn.close()
+
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name="faculty_attendance_report.xlsx",
+        as_attachment=True
+    )
 
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
