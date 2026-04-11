@@ -1,129 +1,164 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>B.Sc. IT Course</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .hero {
-      background-color: #f0f8ff;
-      padding: 60px 0;
-    }
-    .section-title {
-      margin-bottom: 40px;
-    }
-    .footer {
-      background-color: #343a40;
-      color: white;
-      padding: 20px 0;
-    }
-  </style>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>B.Sc. IT Course</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .hero {
+        background-color: #f0f8ff;
+        padding: 60px 0;
+      }
+      .section-title {
+        margin-bottom: 40px;
+      }
+      .custom-navbar {
+        background: linear-gradient(90deg, #2c2c2c, #000000);
+        padding: 10px 0;
+        z-index: 1000;
+      }
 
-<!-- Navbar -->
-<nav class="navbar bg-body-tertiary">
-  <div class="container-fluid">
-    <a class="navbar-brand">BSC.IT</a>
-    <form class="d-flex" role="search">
-      <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search"/>
-      <button class="btn btn-outline-success" type="submit">Search</button>
-    </form>
-  </div>
-</nav>
+      .navbar-title {
+        color: white;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
 
-<!-- Hero Section -->
-<section class="hero text-center">
-  <div class="container">
-    <h1 class="display-5 fw-bold">Bachelor of Science in Information Technology (B.Sc. IT)</h1>
-    <p class="lead">Empowering students with modern IT skills for a digital future.</p>
-  </div>
-</section>
+      body {
+        padding-top: 70px;
+      }
+      .footer {
+        background-color: #343a40;
+        color: white;
+        padding: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar custom-navbar fixed-top">
+      <div class="container d-flex justify-content-between align-items-center">
+        <!-- Left Logo -->
+        <a href="/">
+          <img
+            src="{{ url_for('static', filename='images/institute_logo.png') }}"
+            height="45"
+          />
+        </a>
 
-<!-- Course Overview -->
-<section class="py-5">
-  <div class="container">
-    <h2 class="text-center section-title">Course Overview</h2>
-    <p>B.Sc. in Information Technology is a 3-year undergraduate program focusing on software development, networking, data structures, and IT fundamentals. This course prepares students for careers in the fast-evolving field of Information Technology by providing both theoretical and practical knowledge.</p>
-  </div>
-</section>
-
-<!-- Subjects Section -->
-<section class="bg-light py-5">
-  <div class="container">
-    <h2 class="text-center section-title">Key Subjects Covered</h2>
-    <div class="row">
-      <div class="col-md-6">
-        <ul class="list-group">
-          <li class="list-group-item">Programming in C/C++</li>
-          <li class="list-group-item">Data Structures & Algorithms</li>
-          <li class="list-group-item">Database Management Systems</li>
-          <li class="list-group-item">Computer Networks</li>
-          <li class="list-group-item">Operating Systems</li>
-        </ul>
+        <!-- Center Title -->
+        <span class="navbar-title"> B.Sc. IT </span>
       </div>
-      <div class="col-md-6">
-        <ul class="list-group">
-          <li class="list-group-item">Web Development (HTML, CSS, JS)</li>
-          <li class="list-group-item">Software Engineering</li>
-          <li class="list-group-item">Cloud Computing</li>
-          <li class="list-group-item">Mobile App Development</li>
-          <li class="list-group-item">Cyber Security Basics</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
+    </nav>
 
-<!-- Career Opportunities -->
-<section class="py-5">
-  <div class="container">
-    <h2 class="text-center section-title">Career Opportunities</h2>
-    <p>After completing B.Sc. IT, students can explore careers such as:</p>
-    <div class="row text-center">
-      <div class="col-md-4">
-        <div class="card p-3 mb-3">
-          <h5>Software Developer</h5>
+    <!-- Hero Section -->
+    <section class="hero text-center">
+      <div class="container">
+        <h1 class="display-5 fw-bold">
+          Bachelor of Science in Information Technology (B.Sc. IT)
+        </h1>
+        <p class="lead">
+          Empowering students with modern IT skills for a digital future.
+        </p>
+      </div>
+    </section>
+
+    <!-- Course Overview -->
+    <section class="py-5">
+      <div class="container">
+        <h2 class="text-center section-title">Course Overview</h2>
+        <p>
+          B.Sc. in Information Technology is a 3-year undergraduate program
+          focusing on software development, networking, data structures, and IT
+          fundamentals. This course prepares students for careers in the
+          fast-evolving field of Information Technology by providing both
+          theoretical and practical knowledge.
+        </p>
+      </div>
+    </section>
+
+    <!-- Subjects Section -->
+    <section class="bg-light py-5">
+      <div class="container">
+        <h2 class="text-center section-title">Key Subjects Covered</h2>
+        <div class="row">
+          <div class="col-md-6">
+            <ul class="list-group">
+              <li class="list-group-item">Programming in C/C++</li>
+              <li class="list-group-item">Data Structures & Algorithms</li>
+              <li class="list-group-item">Database Management Systems</li>
+              <li class="list-group-item">Computer Networks</li>
+              <li class="list-group-item">Operating Systems</li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <ul class="list-group">
+              <li class="list-group-item">Web Development (HTML, CSS, JS)</li>
+              <li class="list-group-item">Software Engineering</li>
+              <li class="list-group-item">Cloud Computing</li>
+              <li class="list-group-item">Mobile App Development</li>
+              <li class="list-group-item">Cyber Security Basics</li>
+            </ul>
+          </div>
         </div>
       </div>
-      <div class="col-md-4">
-        <div class="card p-3 mb-3">
-          <h5>Network Administrator</h5>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card p-3 mb-3">
-          <h5>Database Manager</h5>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card p-3 mb-3">
-          <h5>Web Developer</h5>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card p-3 mb-3">
-          <h5>IT Support Specialist</h5>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card p-3 mb-3">
-          <h5>Cyber Security Analyst</h5>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- Footer -->
-<footer class="footer text-center">
-  <div class="container">
-    <p class="mb-0">&copy; 2025 B.Sc. IT Course Website. All rights reserved.</p>
-  </div>
-</footer>
+    <!-- Career Opportunities -->
+    <section class="py-5">
+      <div class="container">
+        <h2 class="text-center section-title">Career Opportunities</h2>
+        <p>After completing B.Sc. IT, students can explore careers such as:</p>
+        <div class="row text-center">
+          <div class="col-md-4">
+            <div class="card p-3 mb-3">
+              <h5>Software Developer</h5>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card p-3 mb-3">
+              <h5>Network Administrator</h5>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card p-3 mb-3">
+              <h5>Database Manager</h5>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card p-3 mb-3">
+              <h5>Web Developer</h5>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card p-3 mb-3">
+              <h5>IT Support Specialist</h5>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card p-3 mb-3">
+              <h5>Cyber Security Analyst</h5>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+    <!-- Footer -->
+    <footer class="footer text-center">
+      <div class="container">
+        <p class="mb-0">
+          &copy; 2026 Saurabh Institute of Technology. All rights reserved.
+        </p>
+      </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
 </html>

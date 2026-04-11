@@ -1294,6 +1294,53 @@ def add_payment(student_id):
     conn.close()
     return render_template("add_payment.html", student=student, fee=fee, pending=pending)
 
+# ----------------- Contact Message ----------------
+@app.route("/contact_submit", methods=["GET","POST"])
+def contact_submit():
+    if request.method == "POST":
+        name = request.form["name"]
+        mobile = request.form["mobile"]
+        email = request.form["email"]
+        message = request.form["message"]
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        INSERT INTO contact_messages (name, mobile, email, message)
+        VALUES (%s, %s, %s, %s)
+        """, (name, mobile, email, message))
+
+        conn.commit()
+        conn.close()
+
+        flash("Message sent successfully!", "success")
+        return redirect("/contact")
+
+@app.route("/admin/contact_messages")
+def admin_contact_messages():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM contact_messages ORDER BY created_at DESC")
+    messages = cursor.fetchall()
+
+    conn.close()
+    return render_template("contact_messages.html", messages=messages)
+
+@app.route("/admin/delete_message/<int:id>")
+def delete_message(id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM contact_messages WHERE id = %s", (id,))
+
+    conn.commit()
+    conn.close()
+
+    flash("Message deleted successfully!", "success")
+    return redirect("/admin/contact_messages")
+
 # ----------------- Attendance Report ----------------
 @app.route("/admin/attendance_report")
 def attendance_report():
